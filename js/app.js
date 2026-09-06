@@ -5,6 +5,7 @@
     initScrollReveal();
     initCounters();
     initMobileNav();
+    initForceDownload();
 
     // ===== NAVBAR =====
     function initNavbar() {
@@ -72,6 +73,37 @@
             });
         }, { threshold: 0.5 });
         counters.forEach(c => observer.observe(c));
+    }
+
+    // ===== FORCE DOWNLOAD (bypasses mobile browsers hijacking .pdf links into a broken viewer) =====
+    function initForceDownload() {
+        document.querySelectorAll('a[data-force-download]').forEach(link => {
+            link.addEventListener('click', async function(e) {
+                e.preventDefault();
+                const url = this.getAttribute('href');
+                const filename = url.split('/').pop();
+                const originalText = this.textContent;
+                try {
+                    this.textContent = 'Скачивание…';
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error('network');
+                    const blob = await response.blob();
+                    const blobUrl = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = blobUrl;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+                } catch (err) {
+                    // Last resort fallback: plain navigation to the file
+                    window.location.href = url;
+                } finally {
+                    this.textContent = originalText;
+                }
+            });
+        });
     }
 
 })();
